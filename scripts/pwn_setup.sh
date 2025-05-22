@@ -9,6 +9,11 @@ socat_port=$((RANDOM % (MAX_PORT - MIN_PORT + 1) + MIN_PORT))
 
 server=$(ip -o -4 addr list | awk '!/ lo / {print $4}' | cut -d/ -f1 | head -n1)
 
+# Generate a random flag content
+RANDOM_FLAG_CONTENT=$(head /dev/urandom | tr -dc A-Za-z0-9_ | head -c 32)
+FLAG="pwn{$RANDOM_FLAG_CONTENT}"
+FLAG_FILE="flag.txt"
+
 function is_executable() {
     local file="$1"
     [[ -x "$file" ]] && file "$file" | grep -qE 'ELF|PE32|PE64'
@@ -38,6 +43,10 @@ echo "[*] Serving directory '$binary_dir' over HTTP on port $WEB_PAGE_PORT"
 echo "[*] Serving binary over TCP port $socat_port with socat (EXEC)"
 
 FILES_DIR="$binary_dir"
+
+# Create the flag file
+echo "$FLAG" > "$binary_dir/$FLAG_FILE"
+echo "[*] Created flag file: $binary_dir/$FLAG_FILE with content: $FLAG"
 
 display_info_files() {
     local -A displayed_files=()
@@ -114,6 +123,47 @@ cat >"$binary_dir/index.html" <<EOF
         hr {
             border-top: 1px dashed #555;
         }
+        /* Validator styles */
+        .validator {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #1c1c1c;
+            border-radius: 6px;
+        }
+        #flag-input {
+            padding: 8px;
+            width: 300px;
+            background-color: #2d2d2d;
+            border: 1px solid #444;
+            color: #c9d1d9;
+            border-radius: 4px;
+        }
+        #validate-btn {
+            padding: 8px 15px;
+            background-color: #98c379;
+            border: none;
+            border-radius: 4px;
+            color: #1e1e1e;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        #validate-btn:hover {
+            background-color: #7dab5f;
+        }
+        #result {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            display: none; /* Hidden by default */
+        }
+        .success {
+            background-color: #2e7d32; /* Darker green */
+            color: white;
+        }
+        .error {
+            background-color: #c62828; /* Darker red */
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -130,19 +180,48 @@ display_info_files >> "$binary_dir/index.html"
 
 cat >> "$binary_dir/index.html" <<EOF
     <h2>Available Files:</h2>
-    <p>Directory : <p> <code> $binary_dir </code> 
+    <p>Directory : <p> <code> $binary_dir </code>
     <ul>
 EOF
 
-# List all files in the directory excluding flag and index.html
+# List all files in the directory excluding index.html and the flag file
 for file in "$FILES_DIR"/*; do
     filename=$(basename "$file")
-    [[ "$filename" == "index.html" || "${filename,,}" == *"flag"* ]] && continue
+    [[ "$filename" == "index.html" || "$filename" == "$FLAG_FILE" ]] && continue
     echo "        <li><a href=\"/$filename\" download=\"$filename\">$filename</a></li>" >> "$binary_dir/index.html"
 done
 
 cat >> "$binary_dir/index.html" <<EOF
     </ul>
+
+    <h2>Submit your Flag:</h2>
+    <div class="validator">
+        <form id="flag-form">
+            <input type="text" id="flag-input" placeholder="Enter your flag (e.g., pwn{...})" size="50">
+            <button type="submit" id="validate-btn">Submit Flag</button>
+        </form>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const correctFlag = "$FLAG"; // The actual flag content
+
+        document.getElementById('flag-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+            const enteredFlag = document.getElementById('flag-input').value.trim();
+            const resultDiv = document.getElementById('result');
+
+            resultDiv.style.display = 'block'; // Make the result div visible
+
+            if (enteredFlag === correctFlag) {
+                resultDiv.textContent = "Correct! You've successfully found the flag!";
+                resultDiv.className = 'success'; // Apply success class
+            } else {
+                resultDiv.textContent = "Incorrect flag. Keep trying!";
+                resultDiv.className = 'error'; // Apply error class
+            }
+        });
+    </script>
 </div>
 </body>
 </html>
@@ -150,6 +229,7 @@ EOF
 
 # Start socat
 socat tcp-l:$socat_port,reuseaddr,fork EXEC:"$chosen_binary",pty,stderr &
+socat_pid=$! # Store the PID of socat
 
 cd "$binary_dir"
 echo "[+] Starting Python HTTP server on port $WEB_PAGE_PORT"
@@ -161,7 +241,9 @@ cd - >/dev/null
 cleanup() {
     echo "[+] Cleaning up..."
     kill "$web_pid" 2>/dev/null || true
+    kill "$socat_pid" 2>/dev/null || true # Kill socat as well
     rm -f "$binary_dir/index.html"
+    rm -f "$binary_dir/$FLAG_FILE" # Remove the flag file
     echo "[+] Done."
     exit 0
 }
