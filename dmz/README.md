@@ -5,7 +5,7 @@ Services Configuration
 Purpose: Practice binary exploitation and reverse engineering
 
 Implementation: 
-A bash ![script](../scripts/pwn_setup.sh) is used to select random binary and create web page and socat listener for the vulnerable ctf binary 
+A bash [script](../scripts/pwn_setup.sh) is used to select random binary and create web page and socat listener for the vulnerable ctf binary 
 
 ```bash
 # Example socat listener for a vulnerable service
@@ -20,17 +20,17 @@ Management:
 - binaries stored in /opt/pwn/ctfs
 - setup script in /opt/pwn/setup
 
-Download binaries from old ctfs from this ![archive](https://github.com/sajjadium/ctf-archives/) 
+Download binaries from old ctfs from this [archive](https://github.com/sajjadium/ctf-archives/) 
 
-and you can use this !(script)[../scripts/filter_repo.sh] to download only pwnable challenges
+and you can use this [script](../scripts/filter_repo.sh) to download only pwnable challenges
 
 2. VulHub Containers
 Purpose: Host known vulnerable applications for training
 
 Implementation:
-A bash ![script](../scripts/vulhub_setup.sh) selects random services and downloads docker image.
+A bash [script](../scripts/vulhub_setup.sh) selects random services and downloads docker image.
 
-![Vulhub](https://github.com/vulhub/vulhub/)
+[Vulhub](https://github.com/vulhub/vulhub/)
 
 ```bash
 docker-compose -f /opt/vulnhub/[vulnerable_app]/docker-compose.yml up -d
