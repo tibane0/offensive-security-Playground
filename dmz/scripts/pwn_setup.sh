@@ -1,0 +1,171 @@
+#!/bin/bash
+set -e
+
+TARGET_DIR="./"
+WEB_PAGE_PORT=8000
+MIN_PORT=9000
+MAX_PORT=9999
+socat_port=$((RANDOM % (MAX_PORT - MIN_PORT + 1) + MIN_PORT))
+
+server=$(ip -o -4 addr list | awk '!/ lo / {print $4}' | cut -d/ -f1 | head -n1)
+
+function is_executable() {
+    local file="$1"
+    [[ -x "$file" ]] && file "$file" | grep -qE 'ELF|PE32|PE64'
+}
+
+mapfile -t potential_binaries < <(find "$TARGET_DIR" -type f -executable ! -iname '*flag*' ! -ipath '*flag*')
+
+declare -a actual_binaries=()
+for file in "${potential_binaries[@]}"; do
+    if is_executable "$file"; then
+        [[ "$file" =~ \.so($|\.) ]] && continue
+        actual_binaries+=("$file")
+    fi
+done
+
+if [ ${#actual_binaries[@]} -eq 0 ]; then
+    echo "No executable binaries found in $TARGET_DIR and subdirectories."
+    exit 1
+fi
+
+chosen_binary="${actual_binaries[RANDOM % ${#actual_binaries[@]}]}"
+binary_dir=$(dirname "$chosen_binary")
+chosen_binary_name=$(basename "$chosen_binary")
+
+echo "[*] Selected binary: $chosen_binary"
+echo "[*] Serving directory '$binary_dir' over HTTP on port $WEB_PAGE_PORT"
+echo "[*] Serving binary over TCP port $socat_port with socat (EXEC)"
+
+FILES_DIR="$binary_dir"
+
+display_info_files() {
+    local -A displayed_files=()
+    local patterns=("README*" "readme*" "DESCRIPTION*" "description*" "*.md" "*.txt")
+
+    echo "<h2>Challenge Information:</h2>"
+
+    for pattern in "${patterns[@]}"; do
+        while IFS= read -r -d $'\0' file; do
+            [[ "${file,,}" == *"flag"* ]] && continue
+            [[ -n "${displayed_files[$file]}" ]] && continue
+            displayed_files[$file]=1
+
+            if grep -qiE "flag{|\bflag\b" "$file"; then
+                continue
+            fi
+
+            filename=$(basename "$file")
+            echo "<h3>Contents of $filename:</h3>"
+            echo "<pre>"
+            head -100 "$file" | sed 's/</\&lt;/g; s/>/\&gt;/g' | grep -vi "flag{"
+            echo "</pre><hr>"
+        done < <(find "$FILES_DIR" -maxdepth 1 -iname "$pattern" -print0)
+    done
+}
+
+cat >"$binary_dir/index.html" <<EOF
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PWN CTF Challenge</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #c9d1d9;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            background-color: #2d2d2d;
+            padding: 30px;
+            border-radius: 10px;
+            max-width: 960px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        h1, h2, h3 {
+            color: #61afef;
+            border-bottom: 1px solid #444;
+            padding-bottom: 6px;
+        }
+        a {
+            color: #98c379;
+        }
+        a:hover {
+            color: #e5c07b;
+        }
+        pre {
+            background-color: #1c1c1c;
+            border: 1px solid #444;
+            padding: 10px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            border-radius: 6px;
+            max-height: 300px;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        hr {
+            border-top: 1px dashed #555;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>PWN CTF Challenge</h1>
+    <p><strong>Download the binary:</strong> <a href="/$chosen_binary_name" download="$chosen_binary_name">$chosen_binary_name</a></p>
+    <p><strong>Connect using socat or netcat:</strong></p>
+    <code>socat - TCP:$server:$socat_port</code><br>
+    <code>nc $server $socat_port</code></p>
+EOF
+
+# Add Challenge Information Section
+display_info_files >> "$binary_dir/index.html"
+
+cat >> "$binary_dir/index.html" <<EOF
+    <h2>Available Files:</h2>
+    <p>Directory : <p> <code> $binary_dir </code> 
+    <ul>
+EOF
+
+# List all files in the directory excluding flag and index.html
+for file in "$FILES_DIR"/*; do
+    filename=$(basename "$file")
+    [[ "$filename" == "index.html" || "${filename,,}" == *"flag"* ]] && continue
+    echo "        <li><a href=\"/$filename\" download=\"$filename\">$filename</a></li>" >> "$binary_dir/index.html"
+done
+
+cat >> "$binary_dir/index.html" <<EOF
+    </ul>
+</div>
+</body>
+</html>
+EOF
+
+# Start socat
+socat tcp-l:$socat_port,reuseaddr,fork EXEC:"$chosen_binary",pty,stderr &
+
+cd "$binary_dir"
+echo "[+] Starting Python HTTP server on port $WEB_PAGE_PORT"
+python3 -m http.server "$WEB_PAGE_PORT" &
+web_pid=$!
+
+cd - >/dev/null
+
+cleanup() {
+    echo "[+] Cleaning up..."
+    kill "$web_pid" 2>/dev/null || true
+    rm -f "$binary_dir/index.html"
+    echo "[+] Done."
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM EXIT
+
+wait "$web_pid"
