@@ -1,3 +1,6 @@
+<?php 
+
+?>
 <!DOCYTYPE html>
 <html>
     <head>
@@ -6,7 +9,7 @@
     <body>
         <h1>Offensive Security Playground</h1>
         <!-- description -->
-        <p> </p>
+        <p></p>
 
         <h2>
     </body>
