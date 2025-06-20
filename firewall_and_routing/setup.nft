@@ -1,0 +1,135 @@
+#!/usr/sbin/nft -f
+
+# Flush existing rules
+flush ruleset
+
+#roman allowd ports
+define DMZ_ALLOWED_TCP_PORTS = {25, 53, 80, 443, 8000, 9000-9999}
+define DMZ_ALLOWED_UDP_PORTS = {53}
+
+#randy allowd ports
+define INT_ALLOWED_TCP_PORTS = {25, 53, 444, 80, 9000-9099}
+define INT_ALLOWED_UDP_PORTS = [53]
+
+
+#network interfaces
+define EXT_NET = "vmbr0"
+define DMZ_NET = "vmbr1"
+define INT_NET = "vmbr2"
+define DEV_NET = "vmbr3"
+define VR_NET = "vmbr4"
+
+
+#IP addresses 
+define DMZ_SERVER = 172.16.0.10
+define PUBLIC_IP = 192.168.2.20 # vmbr0 ip (physical)
+
+
+
+
+table inet firewall-roman {
+    chain input {
+
+    type filter hook input priority 0; policy drop;
+
+    #allow loopback
+    iif lo accept
+
+
+    #allow established connections
+    ct state established,related accept
+
+
+    #allow icmp
+    icmp type echo-request accept
+
+    iffname $EXT_NET tcp dport $DMZ_ALLOWED_TCP_PORTS accept
+    iffname $EXT_NET udp dport $DMZ_ALLOWED_UDP_PORTS accept
+
+    #rate limiting (anti bruteforcing)
+    #tcp dport ssh ct state new limit rate 5/minute accept
+
+    # log and drop everything else
+    log prefix "[nftables DROP] counter drop
+
+    }
+
+    chain output {
+    type filter hook output priority 0; policy accept;
+    }
+
+    chain forward {
+    type filter hook forward priority 0; policy drop;
+    }
+}
+
+table inet firewall2-randy {
+    chain input {
+        type filter hook input priority 0; policy drop;
+
+        iif lo accept
+        ct state established,related accept
+        icmp type echo-request accept
+
+        # Allow only specific TCP ports
+        tcp dport INT_ALLOWED_TCP_PORTS accept
+
+        log prefix "[FIREWALL2 DROP] " counter drop
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+
+
+table inet routing {
+    chain forward {
+        #allow established connections
+        ct state established,related accept
+
+        #dmz - ext | ext  - dmz 
+        iffname $EXT_NET oifname $DMZ_NET accept
+        iffname $DMZ_NET oifname $EXT_NET accept
+        
+        #int - dmz | dev - dmz | vr - dmz
+        iffname $INT_NET oifname $DMZ_NET accept
+        iffname $DEV_NET oifname $DMZ_NET accept
+        iffname $VR_NET oifname $DMZ_NET accept
+
+
+        #block dmz reaching int, vr, dev
+        iffname $DMZ_NET oifname $INT_NET drop
+        iffname $DMZ_NET oifname $VR_NET drop
+        iffname $DMZ_NET oifname $DEV_NET drop
+    }
+}
+
+
+table ip nat {
+    chain prerouting {
+        type nat hook prerouting priority -100; policy accept;
+
+        # DNAT: HTTP/HTTPS to DMZ Web Server
+        iifname $EXT_NET tcp dport 80 dnat to $DMZ_SERVER:80
+        iifname $EXT_NET tcp dport 443 dnat to $DMZ_SERVER:443
+
+        # DNAT: DNS to DMZ DNS Server
+        iifname $EXT_NET udp dport 53 dnat to $DMZ_SERVER:53
+        iifname $EXT_NET tcp dport 53 dnat to $DMZ_SERVER:53
+    }
+
+    chain postrouting {
+        type nat hook postrouting priority 100; policy accept;
+
+        # SNAT: Masquerade DMZ traffic going to the internet
+        oifname $EXT_NET ip saddr 172.16.1.0/24 masquerade
+
+        # Optional: Masquerade internal networks as well
+        oifname $EXT_NET ip saddr 10.0.0.0/8 masquerade
+    }
+}
