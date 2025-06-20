@@ -18,7 +18,7 @@ sudo systemctl start nftables
 ```
 
 This is nftables file for both routing and both the firewalls
-> (File)[./setup.nft]
+> [File]()./setup.nft)
 
 copy the contents of the file and paste in `/etc/nftables.conf`
 
