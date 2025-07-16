@@ -9,23 +9,17 @@ define DMZ_ALLOWED_UDP_PORTS = {53}
 
 #randy allowd ports
 define INT_ALLOWED_TCP_PORTS = {25, 53, 444, 80, 9000-9099}
-define INT_ALLOWED_UDP_PORTS = [53]
+define INT_ALLOWED_UDP_PORTS = {53}
 
 
 #network interfaces
 define EXT_NET = "vmbr0"
 define DMZ_NET = "vmbr1"
 define INT_NET = "vmbr2"
-define DEV_NET = "vmbr3"
-define VR_NET = "vmbr4"
-
 
 #IP addresses 
 define DMZ_SERVER = 172.16.0.10
 define PUBLIC_IP = 192.168.2.20 # vmbr0 ip (physical)
-
-
-
 
 table inet firewall-roman {
     chain input {
@@ -43,14 +37,14 @@ table inet firewall-roman {
     #allow icmp
     icmp type echo-request accept
 
-    iffname $EXT_NET tcp dport $DMZ_ALLOWED_TCP_PORTS accept
-    iffname $EXT_NET udp dport $DMZ_ALLOWED_UDP_PORTS accept
+    iifname $EXT_NET tcp dport $DMZ_ALLOWED_TCP_PORTS accept
+    iifname $EXT_NET udp dport $DMZ_ALLOWED_UDP_PORTS accept
 
     #rate limiting (anti bruteforcing)
     #tcp dport ssh ct state new limit rate 5/minute accept
 
     # log and drop everything else
-    log prefix "[nftables DROP] counter drop
+    log prefix "[firewall1-roman DROP]" counter drop
 
     }
 
@@ -60,10 +54,13 @@ table inet firewall-roman {
 
     chain forward {
     type filter hook forward priority 0; policy drop;
+    iifname $EXT_NET oifname $DMZ_NET accept
+    iifname $DMZ_NET oifname $EXT_NET accept
+
     }
 }
 
-table inet firewall2-randy {
+table inet firewall-randy {
     chain input {
         type filter hook input priority 0; policy drop;
 
@@ -72,13 +69,16 @@ table inet firewall2-randy {
         icmp type echo-request accept
 
         # Allow only specific TCP ports
-        tcp dport INT_ALLOWED_TCP_PORTS accept
+        tcp dport $INT_ALLOWED_TCP_PORTS accept
 
-        log prefix "[FIREWALL2 DROP] " counter drop
+        log prefix "[firewall2-randy DROP] " counter drop
     }
 
     chain forward {
         type filter hook forward priority 0; policy drop;
+        iifname $EXT_NET oifname $DMZ_NET accept
+        iifname $DMZ_NET oifname $EXT_NET accept
+
     }
 
     chain output {
@@ -93,19 +93,14 @@ table inet routing {
         ct state established,related accept
 
         #dmz - ext | ext  - dmz 
-        iffname $EXT_NET oifname $DMZ_NET accept
-        iffname $DMZ_NET oifname $EXT_NET accept
+        iifname $EXT_NET oifname $DMZ_NET accept
+        iifname $DMZ_NET oifname $EXT_NET accept
         
-        #int - dmz | dev - dmz | vr - dmz
-        iffname $INT_NET oifname $DMZ_NET accept
-        iffname $DEV_NET oifname $DMZ_NET accept
-        iffname $VR_NET oifname $DMZ_NET accept
+        #int - dmz 
+        iifname $INT_NET oifname $DMZ_NET accept
 
-
-        #block dmz reaching int, vr, dev
-        iffname $DMZ_NET oifname $INT_NET drop
-        iffname $DMZ_NET oifname $VR_NET drop
-        iffname $DMZ_NET oifname $DEV_NET drop
+        #block dmz reaching int
+        iifname $DMZ_NET oifname $INT_NET drop
     }
 }
 
@@ -130,6 +125,6 @@ table ip nat {
         oifname $EXT_NET ip saddr 172.16.1.0/24 masquerade
 
         # Optional: Masquerade internal networks as well
-        oifname $EXT_NET ip saddr 10.0.0.0/8 masquerade
+        oifname $EXT_NET ip saddr 10.0.0.0/24 masquerade
     }
 }
