@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/26.2.15 Chrome/134.0.6998.205 Electron/35.2.1 Safari/537.36" version="26.2.15">
   <diagram name="Page-1" id="gUhh6BH6qtZ-bJ-SnkSp">
-    <mxGraphModel dx="1345" dy="1865" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1921" dy="2163" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -159,7 +159,7 @@
             <mxPoint x="1310" y="260" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="RZCP1eC1JpLQxB95aDeo-124" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;" parent="1" edge="1" source="UKOFYQc7yCOFPyKtpSYT-4">
+        <mxCell id="RZCP1eC1JpLQxB95aDeo-124" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;" parent="1" source="UKOFYQc7yCOFPyKtpSYT-4" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="800" y="761" as="sourcePoint" />
             <mxPoint x="1310" y="761" as="targetPoint" />
@@ -237,14 +237,14 @@
         <mxCell id="UKOFYQc7yCOFPyKtpSYT-7" value="VULN SERVER&amp;nbsp;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
           <mxGeometry x="610" y="465" width="60" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="pkoSiWiV8SRtJNZRRw58-1" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;" edge="1" parent="1" target="UKOFYQc7yCOFPyKtpSYT-4">
+        <mxCell id="pkoSiWiV8SRtJNZRRw58-1" value="" style="endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;rounded=0;" parent="1" target="UKOFYQc7yCOFPyKtpSYT-4" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="800" y="761" as="sourcePoint" />
             <mxPoint x="1310" y="761" as="targetPoint" />
           </mxGeometry>
         </mxCell>
         <mxCell id="UKOFYQc7yCOFPyKtpSYT-4" value="Linux Pc&lt;div&gt;linux.redteam.lab&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" parent="1" vertex="1">
-          <mxGeometry x="986.75" y="730" width="112" height="69" as="geometry" />
+          <mxGeometry x="981.5" y="740" width="112" height="69" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
