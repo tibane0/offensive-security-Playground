@@ -11,9 +11,10 @@ wazuh_manager="10.0.0.20"
 url="https://packages.wazuh.com/4.x/windows/wazuh-agent-4.12.0-1.msi"
 
 # download 
+wget -Uri=$url -Outfile="wazuh-agent-4.12.0-1.msi"
 
 .\wazuh-agent-4.12.0-1.msi /q WAZUH_MANAGER=$wazuh_manger
-
+#WAZUH_REGISTRATION_SERVER=$wazuh_manager
 NET START Wazuh
 
 
