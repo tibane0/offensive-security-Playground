@@ -25,8 +25,6 @@ void Log(char *info) {
     fclose(log);
 }
 
-
-
 int get(int sock, char* path) {
     char *contents = malloc(MAX_SIZE);
     int fd = open(path, O_RDONLY);
@@ -231,7 +229,7 @@ int main() {
         if (pthread_create(&thread, NULL, client_handler, (void*)new_sock) < 0) {
             perror("could not create thread");
             free(new_sock);
-            continue;
+            continue;6
         }
         // Detach thread so resources are automatically freed on exit
         pthread_detach(thread);

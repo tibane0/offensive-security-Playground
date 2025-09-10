@@ -4,11 +4,18 @@
 # set static ip
 
 # Configuration
-$InterfaceAlias = "Ethernet"          # Change if needed (e.g., "Ethernet0", "Ethernet 2")
+$InterfaceAlias = "Ethernet" 
 $IPAddress      = "10.0.0.10"
 $PrefixLength   = 24                  # For subnet mask 255.255.255.0
 $Gateway        = "10.0.0.1"
-$DNSServers     = @("10.0.0.10", "8.8.8.8")  # First is the DC (itself), second external for fallback
+#$DNSServers     = @("10.0.0.10", "8.8.8.8")  # First is the DC (itself), second external for fallback
+$DNSServers = "8.8.8.8"
+
+# Verify network interface exists
+if (-not (Get-NetAdapter -Name $InterfaceAlias -ErrorAction SilentlyContinue)) {
+    Write-Error "Network interface $InterfaceAlias not found!"
+    exit
+}
 
 # Set static IP
 New-NetIPAddress -InterfaceAlias $InterfaceAlias `
@@ -24,11 +31,14 @@ Set-DnsClientServerAddress -InterfaceAlias $InterfaceAlias `
 Get-NetIPAddress -InterfaceAlias $InterfaceAlias
 Get-DnsClientServerAddress -InterfaceAlias $InterfaceAlias
 
+$password_len = 16
+$chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+$password = -join ((1..$password_len) | ForEach-Object { $chars[(Get-Random -Maximum $chars.Length)] })
 
 # Variables
 $DomainName = "redteam.lab"
 $NetbiosName = "REDTEAM"
-$SafeModePwd = ConvertTo-SecureString "pass" -AsPlainText -Force
+$SafeModePwd = ConvertTo-SecureString $password -AsPlainText -Force
 
 # Install AD DS
 Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
@@ -39,22 +49,8 @@ Install-ADDSForest -DomainName $DomainName `
                   -SafeModeAdministratorPassword $SafeModePwd `
                   -InstallDNS -Force
 
-############################################
-# Create AD Users and Groups
-
-# Users to create
-$Users = @(
-    @{Name="admin"; Password="pass"; Group="Domain Admins"},
-    @{Name="dev"; Password="dev123!"; Group="Domain Users"},
-    @{Name="vr"; Password="vr123!"; Group="Domain Users"},
-    @{Name="intern"; Password="intern123!"; Group="Domain Users"}
-)
-
-foreach ($user in $Users) {
-    $securePwd = ConvertTo-SecureString $user.Password -AsPlainText -Force
-    New-ADUser -Name $user.Name -SamAccountName $user.Name -AccountPassword $securePwd -Enabled $true
-    Add-ADGroupMember -Identity $user.Group -Members $user.Name
-}
 
 #stop sconfig from launching
 Set-SConfig -AutoLaunch $false
+
+
